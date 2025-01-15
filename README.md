@@ -1,166 +1,363 @@
-# Microsoft-Event-Hub-Lab
+# AKS Cluster with Azure Event Hub and KEDA using Pod Identity and Workload Identity
 
-# Lab: Event Hubs Integration with Kubernetes
-
-This lab demonstrates how to set up a Kubernetes deployment that interacts with Azure Event Hubs. The deployment includes a producer service that sends events and a consumer service that receives and logs them.
+This guide provides step-by-step instructions to set up an AKS cluster with Azure Event Hub and KEDA, leveraging Azure Managed Identity, pod identity, and workload identity for secure event processing.
 
 ---
 
-## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Setup](#setup)
-  - [Step 1: Create Azure Event Hubs](#step-1-create-azure-event-hubs)
-  - [Step 2: Configure Kubernetes Secrets](#step-2-configure-kubernetes-secrets)
-  - [Step 3: Deploy Producer Service](#step-3-deploy-producer-service)
-  - [Step 4: Deploy Consumer Service](#step-4-deploy-consumer-service)
-- [Files Overview](#files-overview)
-- [Troubleshooting](#troubleshooting)
+## Steps
+
+### 1. Create an AKS Cluster
+
+- Deploy an AKS cluster with OpenID Connect (OIDC) enabled for workload identity:
+
+```bash
+az aks create --resource-group <resource-group> \
+  --name <aks-cluster-name> \
+  --enable-oidc-issuer \
+  --node-count 3
+```
 
 ---
 
-## Prerequisites
+### 2. Create Event Hub Namespace, Event Hub, Azure Storage, and Container Registry
 
-1. **Azure Account**: Access to an Azure subscription to set up Event Hubs.
-2. **Kubernetes Cluster**: A running Kubernetes cluster with `kubectl` configured.
-3. **Azure CLI**: Installed and authenticated.
-4. **Docker**: Installed and running to build and push container images.
-5. **Event Hubs Namespace**: Provisioned in Azure.
-6. **.NET SDK**: Installed for building producer and consumer services.
+- Create an **Event Hub namespace**:
 
----
+```bash
+az eventhubs namespace create --name <event-hub-namespace> \
+  --resource-group <resource-group> --location <region>
+```
 
-## Setup
+- Add an **Event Hub**:
 
-### Step 1: Create Azure Event Hubs
-1. Log in to Azure:
-   ```bash
-   az login
-   ```
+```bash
+az eventhubs eventhub create --resource-group <resource-group> \
+  --namespace-name <event-hub-namespace> --name <event-hub-name>
+```
 
-2. Create a resource group:
-   ```bash
-   az group create --name EventHubLab --location eastus
-   ```
+- Create a **Storage Account**:
 
-3. Create an Event Hubs namespace:
-   ```bash
-   az eventhubs namespace create --name lab2-phx-eh --resource-group EventHubLab --location eastus
-   ```
+```bash
+az storage account create --name <storage-account-name> \
+  --resource-group <resource-group> --location <region>
+```
 
-4. Create an Event Hub:
-   ```bash
-   az eventhubs eventhub create --name lab2-phx-eh-eh --namespace-name lab2-phx-eh --resource-group EventHubLab
-   ```
+- Create a Blob Container:
 
-5. Retrieve the connection string:
-   ```bash
-   az eventhubs namespace authorization-rule keys list --resource-group EventHubLab --namespace-name lab2-phx-eh --name RootManageSharedAccessKey
-   ```
+```bash
+az storage container create --account-name <storage-account-name> --name <blob-container-name>
+```
 
-### Step 2: Configure Kubernetes Secrets
-1. Create a secret to store the Event Hub connection string and name:
-   ```bash
-   kubectl create secret generic event-hub-credentials \ 
-     --from-literal=EVENT_HUB_CONNECTION_STRING='<YourConnectionString>' \ 
-     --from-literal=EVENT_HUB_NAME='lab2-phx-eh-eh'
-   ```
+- Bind the Event Hub to the Blob Container for checkpointing:
 
-2. Verify the secret:
-   ```bash
-   kubectl get secrets event-hub-credentials -o yaml
-   ```
+```bash
+az eventhubs eventhub update --resource-group <resource-group> \
+  --namespace-name <event-hub-namespace> \
+  --name <event-hub-name> \
+  --enable-capture true \
+  --capture-destination-name <blob-container-name> \
+  --capture-storage-account <storage-account-name>
+```
 
-### Step 3: Deploy Producer Service
-1. Build the producer Docker image:
-   ```bash
-   docker build -t phxlab2cr.azurecr.io/send-events:latest ./send-events
-   ```
+- Create a **Container Registry**:
 
-2. Push the image to your container registry:
-   ```bash
-   docker push phxlab2cr.azurecr.io/send-events:latest
-   ```
-
-3. Apply the producer deployment YAML:
-   ```bash
-   kubectl apply -f producer-deployment.yaml
-   ```
-
-4. Verify the deployment:
-   ```bash
-   kubectl get pods
-   ```
-
-### Step 4: Deploy Consumer Service
-1. Build the consumer Docker image:
-   ```bash
-   docker build -t phxlab2cr.azurecr.io/receive-events:latest ./receive-events
-   ```
-
-2. Push the image to your container registry:
-   ```bash
-   docker push phxlab2cr.azurecr.io/receive-events:latest
-   ```
-
-3. Apply the consumer deployment YAML:
-   ```bash
-   kubectl apply -f consumer-deployment.yaml
-   ```
-
-4. Verify the deployment:
-   ```bash
-   kubectl get pods
-   ```
+```bash
+az acr create --name <acr-name> \
+  --resource-group <resource-group> \
+  --sku Basic
+```
 
 ---
 
-## Files Overview
+### 3. Create a Managed Identity and Assign Permissions
 
-### YAML Files
-- **producer-deployment.yaml**:
-  Defines the deployment for the producer service that sends events to Event Hubs.
-- **consumer-deployment.yaml**:
-  Defines the deployment for the consumer service that receives events from Event Hubs.
+- Create a **Managed Identity**:
 
-### .NET Services
-- **Producer**:
-  Sends events periodically to Event Hubs.
-- **Consumer**:
-  Listens to events from Event Hubs and logs them.
+```bash
+az identity create --name <managed-identity-name> --resource-group <resource-group>
+```
 
-### Secrets
-- **Kubernetes Secret**:
-  Contains `EVENT_HUB_CONNECTION_STRING` and `EVENT_HUB_NAME` for secure access.
+- Assign the **Azure Event Hubs Data Receiver** role for consuming events:
 
-### Git Configuration
-- **`.gitignore`**:
-  Ensures sensitive files like `.env` and temporary build files are not included in version control.
+```bash
+az role assignment create --assignee <client-id> \
+  --role "Azure Event Hubs Data Receiver" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.EventHub/namespaces/<event-hub-namespace>"
+```
 
----
+- Assign the **Azure Event Hubs Data Sender** role for sending events:
 
-## Troubleshooting
+```bash
+az role assignment create --assignee <client-id> \
+  --role "Azure Event Hubs Data Sender" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.EventHub/namespaces/<event-hub-namespace>"
+```
 
-### Common Issues
-1. **Pods in `CrashLoopBackOff`**:
-   - Check logs:
-     ```bash
-     kubectl logs <pod-name>
-     ```
-   - Ensure environment variables are correctly set in Kubernetes secrets.
+- Assign the **Storage Blob Data Reader** role for checkpointing:
 
-2. **Unauthorized Access**:
-   - Ensure the connection string in the secret has the correct permissions.
-
-3. **Event Hubs Not Receiving Events**:
-   - Verify the producer service logs to ensure events are being sent.
-   - Verify the consumer service is listening to the correct Event Hub.
-
-4. **Deployment Errors**:
-   - Check the YAML for syntax issues.
-   - Validate the secret and image references.
+```bash
+az role assignment create --assignee <client-id> \
+  --role "Storage Blob Data Reader" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Storage/storageAccounts/<storage-account-name>"
+```
 
 ---
 
-## Notes
-- This lab demonstrates a complete flow of sending and receiving events using Azure Event Hubs in Kubernetes.
-- Use role-based access control (RBAC) and Azure Managed Identities for enhanced security in production environments.
+### 4. Push Images to a Container Registry
+
+- Tag and push the sender and receiver images to Azure Container Registry (ACR):
+
+```bash
+az acr login --name <acr-name>
+docker tag receive-events:latest <acr-name>.azurecr.io/receive-events:latest
+docker tag send-events:latest <acr-name>.azurecr.io/send-events:latest
+docker push <acr-name>.azurecr.io/receive-events:latest
+docker push <acr-name>.azurecr.io/send-events:latest
+```
+
+---
+
+### 5. Develop and Deploy Sender and Receiver Services
+
+#### Develop Services in C#
+
+1. **Producer (Sender)**:
+
+   - Create a C# application to produce messages to the Event Hub.
+   - Use the Azure SDK for Event Hubs to implement the producer logic.
+
+   Example:
+
+   ```csharp
+   var producerClient = new EventHubProducerClient(new DefaultAzureCredential(), "<event-hub-namespace>", "<event-hub-name>");
+   using EventDataBatch eventBatch = await producerClient.CreateBatchAsync();
+   eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes("Message")));
+   await producerClient.SendAsync(eventBatch);
+   ```
+
+2. **Consumer (Receiver)**:
+
+   - Create a C# application to consume messages from the Event Hub.
+   - Use the Azure SDK for Event Hubs and DefaultAzureCredential for Managed Identity.
+
+   Example:
+
+   ```csharp
+   var processor = new EventProcessorClient(
+       new BlobContainerClient(new DefaultAzureCredential(), "<storage-account-name>", "<blob-container-name>"),
+       "$Default",
+       "<event-hub-namespace>",
+       "<event-hub-name>");
+   processor.ProcessEventAsync += EventHandler;
+   processor.ProcessErrorAsync += ErrorHandler;
+   await processor.StartProcessingAsync();
+   ```
+
+#### Deploy to AKS
+
+#### Receiver Deployment YAML:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receive-events-deployment
+  labels:
+    app: receive-events
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: receive-events
+  template:
+    metadata:
+      labels:
+        app: receive-events
+        aadpodidbinding: events-identity
+    spec:
+      containers:
+      - name: receive-events
+        image: <container-registry>/receive-events:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: EVENT_HUB_NAMESPACE
+          value: <event-hub-namespace>
+        - name: EVENT_HUB_NAME
+          value: <event-hub-name>
+        - name: CONSUMER_GROUP
+          value: "$Default"
+```
+
+#### Sender Deployment YAML:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: send-events-deployment
+  labels:
+    app: send-events
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: send-events
+  template:
+    metadata:
+      labels:
+        app: send-events
+        aadpodidbinding: events-identity
+    spec:
+      containers:
+      - name: send-events
+        image: <container-registry>/send-events:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: EVENT_HUB_NAMESPACE
+          value: <event-hub-namespace>
+        - name: EVENT_HUB_NAME
+          value: <event-hub-name>
+        - name: EVENT_SEND_DELAY
+          value: "5"
+```
+
+Apply these deployments:
+
+```bash
+kubectl apply -f receive-events-deployment.yaml
+kubectl apply -f send-events-deployment.yaml
+```
+
+---
+
+### 6. Configure Azure Identity for Pod Identity
+
+#### Create AzureIdentity YAML:
+
+```yaml
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentity
+metadata:
+  name: events-identity
+  namespace: default
+spec:
+  type: 0
+  resourceID: /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name>
+  clientID: <client-id>
+```
+
+#### Create AzureIdentityBinding YAML:
+
+```yaml
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentityBinding
+metadata:
+  name: events-identity-binding
+  namespace: default
+spec:
+  azureIdentity: events-identity
+  selector: events-identity
+```
+
+Apply these resources:
+
+```bash
+kubectl apply -f azure-identity.yaml
+kubectl apply -f azure-identity-binding.yaml
+```
+
+---
+
+### 7. Deploy KEDA and Configure Scaling
+
+#### Install KEDA:
+
+```bash
+helm install keda kedacore/keda --namespace keda --create-namespace --set podIdentity.activeDirectory.identity=<managed-identity-name>
+```
+
+#### Create Federated Identity Credential for KEDA:
+
+```bash
+az identity federated-credential create \
+  --name keda-trigger-auth \
+  --identity-name <managed-identity-name> \
+  --resource-group <resource-group> \
+  --issuer "<oidc-issuer-url>" \
+  --subject "system:serviceaccount:kube-system:keda-operator"
+```
+
+#### TriggerAuthentication YAML:
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: receive-events-auth
+  namespace: default
+spec:
+  podIdentity:
+    identityId: <client-id>
+    provider: azure-workload
+```
+
+#### ScaledObject YAML:
+
+```yaml
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: receive-events-scaler
+  namespace: default
+spec:
+  scaleTargetRef:
+    name: receive-events-deployment
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: azure-eventhub
+      metadata:
+        eventHubNamespace: <event-hub-namespace>
+        eventHubName: <event-hub-name>
+        consumerGroup: "$Default"
+        threshold: "200"
+        storageAccountName: <storage-account-name>
+        blobContainer: <blob-container-name>
+      authenticationRef:
+        name: receive-events-auth
+```
+
+Apply these resources:
+
+```bash
+kubectl apply -f trigger-authentication.yaml
+kubectl apply -f scaledobject.yaml
+```
+
+---
+
+### 8. Test and Verify
+
+- Verify the deployments:
+
+```bash
+kubectl get pods --namespace default
+```
+
+- Check KEDA operator logs for scaling events:
+
+```bash
+kubectl logs deployment/keda-operator --namespace keda
+```
+
+- Simulate traffic with the sender service and observe the scaling behavior of the receiver pods:
+
+```bash
+kubectl get hpa --namespace default
+kubectl get pods --namespace default
+```
+
