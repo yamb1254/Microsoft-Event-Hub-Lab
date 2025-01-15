@@ -5,5 +5,5 @@ metadata:
   namespace: default
 spec:
   type: 0
-  resourceID: /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name>
-  clientID: <client-id>
+  resourceID: /subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managed-identity-name> # Replace <subscription-id>, <resource-group>, and <managed-identity-name> with the subscription ID, resource group name, and the name of the Managed Identity you created in Azure.
+  clientID: <client-id> # Replace <client-id> with the Client ID of the Managed Identity you created in Azure.
