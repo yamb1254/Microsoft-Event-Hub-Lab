@@ -5,19 +5,19 @@ metadata:
   namespace: default
 spec:
   scaleTargetRef:
-    name: receive-events-deployment  # Name of the target deployment
-  pollingInterval: 30               # Check metrics every 30 seconds
-  cooldownPeriod: 300               # Wait for 5 minutes before scaling down
-  minReplicaCount: 1                # Minimum number of pods
-  maxReplicaCount: 10               # Maximum number of pods
+    name: receive-events-deployment  # Name of the target deployment to scale.
+  pollingInterval: 30               # Check metrics every 30 seconds.
+  cooldownPeriod: 300               # Wait for 5 minutes before scaling down.
+  minReplicaCount: 1                # Minimum number of pods.
+  maxReplicaCount: 10               # Maximum number of pods.
   triggers:
     - type: azure-eventhub
       metadata:
-        eventHubNamespace: <event-hub-namespace>
-        eventHubName: <event-hub-name>
-        consumerGroup: "$Default"
-        threshold: "200"                                 # Messages threshold for scaling      
-        storageAccountName: <storage-account-name>
-        blobContainer: <blob-container-name>
+        eventHubNamespace: <event-hub-namespace> # Replace <event-hub-namespace> with the name of your Event Hub namespace.
+        eventHubName: <event-hub-name>           # Replace <event-hub-name> with the name of your Event Hub.
+        consumerGroup: "$Default"               # Consumer group used for the Event Hub.
+        threshold: "200"                        # Messages threshold for scaling.
+        storageAccountName: <storage-account-name> # Replace <storage-account-name> with the name of your Azure Storage account for checkpointing.
+        blobContainer: <blob-container-name>        # Replace <blob-container-name> with the name of your blob container for checkpointing.
       authenticationRef:
-        name: receive-events-auth
+        name: receive-events-auth              # Reference to the TriggerAuthentication resource.
