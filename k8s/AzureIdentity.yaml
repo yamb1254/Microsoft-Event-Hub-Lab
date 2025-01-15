@@ -1,0 +1,9 @@
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentity
+metadata:
+  name: events-identity
+  namespace: default
+spec:
+  type: 0
+  resourceID: /subscriptions/90308b94-cf85-4b74-8e3d-8469ed4198d9/resourcegroups/mps-ine-lab2-k8s-stg-cus-70/providers/Microsoft.ManagedIdentity/userAssignedIdentities/mps-xdr-stg-cus-70-cluster
+  clientID: 90c7695c-1474-43f9-9d11-a33964e6694e

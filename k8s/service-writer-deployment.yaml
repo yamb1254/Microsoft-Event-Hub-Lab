@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: send-events-deployment
+  labels:
+    app: send-events
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: send-events
+  template:
+    metadata:
+      labels:
+        app: send-events
+        aadpodidbinding: events-identity
+    spec:
+      containers:
+      - name: send-events
+        image: phxlab2cr.azurecr.io/send-events:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: EVENT_HUB_NAMESPACE
+          value: lab2-phx-eh
+        - name: EVENT_HUB_NAME
+          value: lab2-phx-eh-eh
+        - name: EVENT_SEND_DELAY
+          value: "5" 

@@ -1,0 +1,10 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: receive-events-auth
+  namespace: default
+spec:
+  podIdentity:
+    identityId: 90c7695c-1474-43f9-9d11-a33964e6694e
+    provider: azure-workload
+
