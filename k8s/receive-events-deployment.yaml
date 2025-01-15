@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: receive-events-deployment
+  name: receive-events-deployment  # Name of the deployment.
   labels:
-    app: receive-events
+    app: receive-events            # Label to identify the app.
 spec:
-  replicas: 1
+  replicas: 1                      # Number of pod replicas.
   selector:
     matchLabels:
-      app: receive-events
+      app: receive-events          # Selector to match the pod labels.
   template:
     metadata:
       labels:
-        app: receive-events
-        aadpodidbinding: events-identity
+        app: receive-events        # Label for the pod.
+        aadpodidbinding: events-identity # Name of the Azure Identity binding for the pod.
     spec:
       containers:
-      - name: receive-events
-        image: <container-registry>/receive-events:latest
+      - name: receive-events       # Name of the container.
+        image: <container-registry>/receive-events:latest # Replace <container-registry> with the name of your Azure Container Registry.
         ports:
-        - containerPort: 80
+        - containerPort: 80        # Port exposed by the container.
         env:
         - name: EVENT_HUB_NAMESPACE
-          value: <event-hub-namespace>
+          value: <event-hub-namespace> # Replace <event-hub-namespace> with the name of your Event Hub namespace.
         - name: EVENT_HUB_NAME
-          value: <event-hub-name>
+          value: <event-hub-name>       # Replace <event-hub-name> with the name of your Event Hub.
         - name: CONSUMER_GROUP
-          value: "$Default"
+          value: "$Default"             # Default consumer group for Event Hub.
