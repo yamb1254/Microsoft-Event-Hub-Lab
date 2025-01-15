@@ -1,6 +1,53 @@
 # AKS Cluster with Azure Event Hub and KEDA using Pod Identity and Workload Identity
 
 This guide provides step-by-step instructions to set up an AKS cluster with Azure Event Hub and KEDA, leveraging Azure Managed Identity, pod identity, and workload identity for secure event processing.
+---
+
+## Pre-Steps
+
+### 1. Install Azure CLI
+
+- Download and install the Azure CLI from the official [Azure CLI installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+
+### 2. Login to Azure
+
+- Login to your Azure account:
+
+```bash
+az login
+```
+
+- If you're using a service principal for automation, use:
+
+```bash
+az login --service-principal --username <app-id> --password <password> --tenant <tenant-id>
+```
+
+### 3. Create a Subscription (Optional, if not already created)
+
+- Check your existing subscriptions:
+
+```bash
+az account list --output table
+```
+
+- If needed, create a new subscription from the Azure Portal or CLI. For CLI-based subscription creation, refer to Azure documentation [here](https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/create-subscription).
+
+### 4. Set the Subscription
+
+- Set the subscription you want to use:
+
+```bash
+az account set --subscription <subscription-id>
+```
+
+### 5. Create a Resource Group
+
+- Create a resource group to organize your resources:
+
+```bash
+az group create --name <resource-group-name> --location <region>
+```
 
 ---
 
