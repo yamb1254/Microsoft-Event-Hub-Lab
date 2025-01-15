@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
       - name: send-events
-        image: phxlab2cr.azurecr.io/send-events:latest
+        image: <container-registry>/send-events:latest
         ports:
         - containerPort: 80
         env:
         - name: EVENT_HUB_NAMESPACE
-          value: lab2-phx-eh
+          value: <event-hub-namespace>
         - name: EVENT_HUB_NAME
-          value: lab2-phx-eh-eh
+          value: <event-hub-name>
         - name: EVENT_SEND_DELAY
-          value: "5" 
+          value: "5"
