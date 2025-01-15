@@ -13,11 +13,11 @@ spec:
   triggers:
     - type: azure-eventhub
       metadata:
-        eventHubNamespace: lab2-phx-eh       # Event Hub namespace
-        eventHubName: lab2-phx-eh-eh         # Event Hub name
-        consumerGroup: "$Default"            # Consumer group (default is "$Default")
-        threshold: "200"                     # Messages threshold for scaling
-        storageAccountName: phxlab2sa        # Storage account name for checkpointing
-        blobContainer: lab2blobeh            # Blob container name for checkpointing
+        eventHubNamespace: <event-hub-namespace>
+        eventHubName: <event-hub-name>
+        consumerGroup: "$Default"
+        threshold: "200"                                 # Messages threshold for scaling      
+        storageAccountName: <storage-account-name>
+        blobContainer: <blob-container-name>
       authenticationRef:
-        name: receive-events-auth            # Reference to the authentication secret
+        name: receive-events-auth
