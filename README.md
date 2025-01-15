@@ -16,6 +16,18 @@ az aks create --resource-group <resource-group> \
   --enable-oidc-issuer \
   --node-count 3
 ```
+- **Optional Compliance-Friendly Alternative**:
+  For compliance, create the cluster using the guidance provided in [this documentation](https://eng.ms/docs/microsoft-security/microsoft-threat-protection-mtp/onesoc-1soc/infra-and-developer-platform-scip-idp/defender-k8s-platform/defender-k8s-platform-customers/how_to/cluster_creation).
+
+  - This setup pre-installs extensions like KEDA and others.
+  - Use the pre-installed namespaces and deployments by searching for pods and deployments:
+
+  ```bash
+  kubectl get pods --all-namespaces
+  kubectl get deployments --all-namespaces
+  ```
+
+  Use these pre-installed resources instead of creating new ones.
 
 ---
 
