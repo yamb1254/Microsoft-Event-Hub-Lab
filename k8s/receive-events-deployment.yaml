@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
       - name: receive-events
-        image: phxlab2cr.azurecr.io/receive-events:latest
+        image: <container-registry>/receive-events:latest
         ports:
         - containerPort: 80
         env:
         - name: EVENT_HUB_NAMESPACE
-          value: lab2-phx-eh
+          value: <event-hub-namespace>
         - name: EVENT_HUB_NAME
-          value: lab2-phx-eh-eh
+          value: <event-hub-name>
         - name: CONSUMER_GROUP
-          value: "$Default" 
+          value: "$Default"
